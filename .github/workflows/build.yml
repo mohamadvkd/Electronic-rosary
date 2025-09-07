@@ -12,10 +12,17 @@ jobs:
     - name: Checkout source
       uses: actions/checkout@v3
 
-    - name: Install Android build tools
+    - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y openjdk-17-jdk wget unzip zipalign apksigner
+        sudo apt install -y openjdk-17-jdk wget unzip zipalign
+
+    - name: Download aapt2
+      run: |
+        mkdir -p sdk
+        wget https://dl.google.com/android/repository/build-tools_r33.0.2-linux.zip -O sdk/build-tools.zip
+        unzip sdk/build-tools.zip -d sdk
+        mv sdk/android-13 sdk/build-tools
 
     - name: Prepare build directory
       run: |
@@ -26,21 +33,22 @@ jobs:
 
     - name: Compile resources
       run: |
-        aapt2 compile -o build/res.zip build/res/**/*.xml
-        aapt2 link -o build/output.apk \
+        sdk/build-tools/aapt2 compile -o build/res.zip build/res/**/*.xml
+        sdk/build-tools/aapt2 link -o build/output.apk \
           -I $ANDROID_HOME/platforms/android-33/android.jar \
           --manifest build/AndroidManifest.xml \
           -R build/res.zip \
           --assets build/assets \
           --output-to-dir
 
-    - name: Sign APK
+    - name: Generate keystore and sign APK
       run: |
         keytool -genkey -v -keystore my-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 \
           -alias my-key-alias -storepass 123456 -keypass 123456 -dname "CN=QuranViewer, OU=Dev, O=Mohamad, L=Amman, S=Jordan, C=JO"
+        zipalign -v 4 build/output.apk build/aligned.apk
         apksigner sign --ks my-release-key.jks --ks-key-alias my-key-alias \
           --ks-pass pass:123456 --key-pass pass:123456 \
-          --out build/QuranViewer.apk build/output.apk
+          --out build/QuranViewer.apk build/aligned.apk
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
