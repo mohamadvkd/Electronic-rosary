@@ -17,12 +17,12 @@ jobs:
         sudo apt update
         sudo apt install -y openjdk-17-jdk wget unzip zipalign
 
-    - name: Download aapt2
+    - name: Download aapt2 from SDK
       run: |
         mkdir -p sdk
         wget https://dl.google.com/android/repository/build-tools_r33.0.2-linux.zip -O sdk/build-tools.zip
         unzip sdk/build-tools.zip -d sdk
-        mv sdk/android-13 sdk/build-tools
+        mv sdk/build-tools/* sdk/build-tools/33.0.2
 
     - name: Prepare build directory
       run: |
@@ -33,8 +33,8 @@ jobs:
 
     - name: Compile resources
       run: |
-        sdk/build-tools/aapt2 compile -o build/res.zip build/res/**/*.xml
-        sdk/build-tools/aapt2 link -o build/output.apk \
+        sdk/build-tools/33.0.2/aapt2 compile -o build/res.zip build/res/**/*.xml
+        sdk/build-tools/33.0.2/aapt2 link -o build/output.apk \
           -I $ANDROID_HOME/platforms/android-33/android.jar \
           --manifest build/AndroidManifest.xml \
           -R build/res.zip \
