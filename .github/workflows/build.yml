@@ -10,20 +10,21 @@ jobs:
 
     steps:
     - name: Checkout source
-      uses: actions/checkout@v4  # تحديث إلى v4 للاستقرار
+      uses: actions/checkout@v4
 
     - name: Set up JDK 17
-      uses: actions/setup-java@v4  # استخدم v4 هنا لـ Java
+      uses: actions/setup-java@v4
       with:
         java-version: '17'
-        distribution: 'temurin'  # توزيع موصى به
+        distribution: 'temurin'
 
     - name: Set up Android SDK
-      uses: android-actions/setup-android@v3  # الإجراء الصحيح والرسمي
+      uses: android-actions/setup-android@v3
       with:
-        sdk: 'default'  # تثبيت SDK الافتراضي
-        build-tools: '33.0.2'  # إصدار build-tools المطلوب
-        ndk: 'default'  # NDK إذا لزم الأمر
+        sdk: 'default'
+        build-tools: '33.0.2'
+        ndk: 'default'
+        accept-android-sdk-licenses: true  # إضافة قبول التراخيص تلقائيًا
 
     - name: Prepare build directory
       run: |
@@ -34,7 +35,6 @@ jobs:
 
     - name: Compile resources
       run: |
-        # تجميع الموارد باستخدام aapt2
         $ANDROID_HOME/build-tools/33.0.2/aapt2 compile -o build/res.zip build/res/* 2>/dev/null || echo "Warning: Resource compilation may have issues"
         $ANDROID_HOME/build-tools/33.0.2/aapt2 link -o build/output.apk \
           -I $ANDROID_HOME/platforms/android-33/android.jar \
@@ -45,7 +45,6 @@ jobs:
 
     - name: Generate keystore and sign APK
       run: |
-        # إنشاء keystore (استخدم سرًا لكلمة المرور في الإنتاج)
         keytool -genkey -v -keystore my-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 \
           -alias my-key-alias -storepass ${{ secrets.KEYSTORE_PASSWORD || '123456' }} \
           -keypass ${{ secrets.KEYSTORE_PASSWORD || '123456' }} \
