@@ -30,7 +30,7 @@ jobs:
 
     - name: Compile resources
       run: |
-        sdk/build-tools/aapt2 compile -o build/res.zip $(find build/res -name "*.xml")
+        find build/res -name "*.xml" -exec grep -q "<" {} \; -print | xargs sdk/build-tools/aapt2 compile -o build/res.zip
         sdk/build-tools/aapt2 link -o build/output.apk \
           -I $ANDROID_HOME/platforms/android-33/android.jar \
           --manifest build/AndroidManifest.xml \
