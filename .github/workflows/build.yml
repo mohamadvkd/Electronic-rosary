@@ -12,47 +12,39 @@ jobs:
     - name: Checkout source
       uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-
-    - name: Set up Android SDK
-      uses: android-actions/setup-android@v3
-      with:
-        sdk: 'default'
-        build-tools: '33.0.2'
-        ndk: 'default'
-        accept-android-sdk-licenses: true  # إضافة قبول التراخيص تلقائيًا
+    - name: Install JDK and Android tools
+      run: |
+        sudo apt update
+        sudo apt install -y openjdk-17-jdk wget unzip zipalign apksigner
+        mkdir -p sdk
+        wget https://dl.google.com/android/repository/build-tools_r33.0.2-linux.zip -O sdk/build-tools.zip
+        unzip sdk/build-tools.zip -d sdk
+        mv sdk/android-13 sdk/build-tools
 
     - name: Prepare build directory
       run: |
         mkdir -p build
-        if [ -d res ]; then cp -r res build/; else echo "Warning: res directory not found"; fi
-        if [ -d assets ]; then cp -r assets build/; else echo "Warning: assets directory not found"; fi
-        if [ -f AndroidManifest.xml ]; then cp AndroidManifest.xml build/; else echo "Warning: AndroidManifest.xml not found"; fi
+        [ -d res ] && cp -r res build/ || echo "⚠️ res directory not found"
+        [ -d assets ] && cp -r assets build/ || echo "⚠️ assets directory not found"
+        [ -f AndroidManifest.xml ] && cp AndroidManifest.xml build/ || echo "⚠️ AndroidManifest.xml not found"
 
     - name: Compile resources
       run: |
-        $ANDROID_HOME/build-tools/33.0.2/aapt2 compile -o build/res.zip build/res/* 2>/dev/null || echo "Warning: Resource compilation may have issues"
-        $ANDROID_HOME/build-tools/33.0.2/aapt2 link -o build/output.apk \
+        sdk/build-tools/aapt2 compile -o build/res.zip $(find build/res -name "*.xml")
+        sdk/build-tools/aapt2 link -o build/output.apk \
           -I $ANDROID_HOME/platforms/android-33/android.jar \
           --manifest build/AndroidManifest.xml \
           -R build/res.zip \
-          --assets build/assets \
-          --output-to-dir
+          --assets build/assets
 
     - name: Generate keystore and sign APK
       run: |
         keytool -genkey -v -keystore my-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 \
-          -alias my-key-alias -storepass ${{ secrets.KEYSTORE_PASSWORD || '123456' }} \
-          -keypass ${{ secrets.KEYSTORE_PASSWORD || '123456' }} \
-          -dname "CN=Unknown, OU=Unknown, O=Unknown, L=Unknown, ST=Unknown, C=Unknown"
-        $ANDROID_HOME/build-tools/33.0.2/zipalign -v 4 build/output.apk build/aligned.apk
-        $ANDROID_HOME/build-tools/33.0.2/apksigner sign --ks my-release-key.jks \
-          --ks-key-alias my-key-alias --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD || '123456' }} \
-          --key-pass pass:${{ secrets.KEYSTORE_PASSWORD || '123456' }} \
+          -alias my-key-alias -storepass 123456 -keypass 123456 \
+          -dname "CN=QuranViewer, OU=Dev, O=Mohamad, L=Amman, S=Jordan, C=JO"
+        zipalign -v 4 build/output.apk build/aligned.apk
+        apksigner sign --ks my-release-key.jks --ks-key-alias my-key-alias \
+          --ks-pass pass:123456 --key-pass pass:123456 \
           --out build/QuranViewer.apk build/aligned.apk
 
     - name: Upload APK
