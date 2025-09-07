@@ -1,4 +1,4 @@
-name: Build APK
+name: Build WebView APK
 
 on:
   push:
@@ -12,35 +12,38 @@ jobs:
     - name: Checkout source
       uses: actions/checkout@v3
 
-    - name: Set up Java
-      uses: actions/setup-java@v3
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-
-    - name: Download bundletool
+    - name: Install Android build tools
       run: |
-        wget https://github.com/google/bundletool/releases/download/1.15.0/bundletool-all-1.15.0.jar -O bundletool.jar
+        sudo apt update
+        sudo apt install -y openjdk-17-jdk wget unzip zipalign apksigner
 
-    - name: Build APK using bundletool
+    - name: Prepare build directory
       run: |
-        mkdir output
-        java -jar bundletool.jar build-apks \
-          --bundle base.zip \
-          --output output/app.apks \
-          --ks my-release-key.jks \
-          --ks-pass pass:123456 \
-          --ks-key-alias my-key-alias \
-          --key-pass pass:123456 \
-          --overwrite
+        mkdir -p build
+        cp -r res build/
+        cp -r assets build/
+        cp AndroidManifest.xml build/
 
-    - name: Extract APK
+    - name: Compile resources
       run: |
-        unzip output/app.apks -d output
-        mv output/*.apk output/QuranViewer.apk
+        aapt2 compile -o build/res.zip build/res/**/*.xml
+        aapt2 link -o build/output.apk \
+          -I $ANDROID_HOME/platforms/android-33/android.jar \
+          --manifest build/AndroidManifest.xml \
+          -R build/res.zip \
+          --assets build/assets \
+          --output-to-dir
+
+    - name: Sign APK
+      run: |
+        keytool -genkey -v -keystore my-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 \
+          -alias my-key-alias -storepass 123456 -keypass 123456 -dname "CN=QuranViewer, OU=Dev, O=Mohamad, L=Amman, S=Jordan, C=JO"
+        apksigner sign --ks my-release-key.jks --ks-key-alias my-key-alias \
+          --ks-pass pass:123456 --key-pass pass:123456 \
+          --out build/QuranViewer.apk build/output.apk
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: QuranViewer
-        path: output/QuranViewer.apk
+        path: build/QuranViewer.apk
