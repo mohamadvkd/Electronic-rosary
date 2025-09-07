@@ -1,0 +1,46 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v3
+
+    - name: Set up Java
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Download bundletool
+      run: |
+        wget https://github.com/google/bundletool/releases/download/1.15.0/bundletool-all-1.15.0.jar -O bundletool.jar
+
+    - name: Build APK using bundletool
+      run: |
+        mkdir output
+        java -jar bundletool.jar build-apks \
+          --bundle base.zip \
+          --output output/app.apks \
+          --ks my-release-key.jks \
+          --ks-pass pass:123456 \
+          --ks-key-alias my-key-alias \
+          --key-pass pass:123456 \
+          --overwrite
+
+    - name: Extract APK
+      run: |
+        unzip output/app.apks -d output
+        mv output/*.apk output/QuranViewer.apk
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: QuranViewer
+        path: output/QuranViewer.apk
